@@ -8,6 +8,7 @@ const env = require("./config/env");
 const authRoutes = require("./routes/authRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const bookModelRoutes = require("./routes/bookModelRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 const errorHandler = require("./middleware/errorMiddleware");
 const { sendError } = require("./utils/responseHandler");
 
@@ -29,6 +30,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/book-model", bookModelRoutes);
+app.use("/api/orders", orderRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("*", (_req, res) => {

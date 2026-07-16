@@ -1,0 +1,11 @@
+const { body } = require("express-validator");
+
+const updateOrderStatusValidator = [
+  body("orderStatus")
+    .notEmpty()
+    .withMessage("Order status is required")
+    .isIn(["Model Complete", "Dispatched", "Shipped"])
+    .withMessage("Order status must be one of: Model Complete, Dispatched, Shipped"),
+];
+
+module.exports = { updateOrderStatusValidator };
