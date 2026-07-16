@@ -1,8 +1,20 @@
 const { sendError } = require("../utils/responseHandler");
 
+const multer = require("multer");
+
 const errorHandler = (err, req, res, _next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || "Internal Server Error";
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        success: false,
+        message: "File size must be under 10 MB",
+      });
+    }
+    return res.status(400).json({ success: false, message: err.message });
+  }
 
   if (err.name === "ValidationError") {
     statusCode = 400;
