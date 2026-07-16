@@ -1,0 +1,36 @@
+const adminService = require("../services/adminService");
+const { sendSuccess, sendError } = require("../utils/responseHandler");
+
+const getProfile = async (req, res, next) => {
+  try {
+    const admin = await adminService.getProfile(req.admin._id);
+    return sendSuccess(res, admin, "Profile fetched successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateProfile = async (req, res, next) => {
+  try {
+    const data = { ...req.body };
+    if (req.file) {
+      data.profileImage = `/uploads/${req.file.filename}`;
+    }
+    const admin = await adminService.updateProfile(req.admin._id, data);
+    return sendSuccess(res, admin, "Profile updated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    await adminService.changePassword(req.admin._id, currentPassword, newPassword, confirmPassword);
+    return sendSuccess(res, null, "Password changed successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getProfile, updateProfile, changePassword };

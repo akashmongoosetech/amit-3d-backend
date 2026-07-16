@@ -9,6 +9,7 @@ const authRoutes = require("./routes/authRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const bookModelRoutes = require("./routes/bookModelRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 const errorHandler = require("./middleware/errorMiddleware");
 const { sendError } = require("./utils/responseHandler");
 
@@ -16,7 +17,7 @@ const app = express();
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
-app.use(express.json({ limit: "100kb" }));
+app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
 
 if (env.NODE_ENV === "development") {
@@ -31,6 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/book-model", bookModelRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("*", (_req, res) => {
