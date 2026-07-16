@@ -57,8 +57,8 @@ const bookModelSchema = new mongoose.Schema(
     },
     orderStatus: {
       type: String,
-      enum: ["Model Complete", "Dispatched", "Shipped"],
-      default: "Model Complete",
+      enum: ["Start Create","Model Complete", "Dispatched", "Shipped"],
+      default: "Start Create",
     },
   },
   {
