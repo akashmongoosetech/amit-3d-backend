@@ -33,4 +33,14 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, changePassword };
+const listAdmins = async (req, res, next) => {
+  try {
+    const { search } = req.query;
+    const admins = await adminService.listAdmins(search);
+    return sendSuccess(res, admins, "Admins fetched successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getProfile, updateProfile, changePassword, listAdmins };

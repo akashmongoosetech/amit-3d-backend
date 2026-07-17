@@ -4,7 +4,9 @@ const {
   getProfile,
   updateProfile,
   changePassword,
+  listAdmins,
 } = require("../controllers/adminController");
+const { getDashboardData } = require("../controllers/dashboardController");
 const { protect } = require("../middleware/authMiddleware");
 const validate = require("../middleware/validateMiddleware");
 const {
@@ -14,6 +16,8 @@ const {
 const upload = require("../config/multer");
 
 router.get("/profile", protect, getProfile);
+router.get("/users", protect, listAdmins);
+router.get("/dashboard", protect, getDashboardData);
 
 router.put(
   "/profile",

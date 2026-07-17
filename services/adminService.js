@@ -140,4 +140,15 @@ const changePassword = async (id, currentPassword, newPassword, confirmPassword)
   return admin;
 };
 
-module.exports = { getProfile, updateProfile, changePassword };
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const listAdmins = async (search) => {
+  const filter = {};
+  if (search) {
+    const regex = new RegExp(escapeRegex(search.trim()), "i");
+    filter.$or = [{ firstName: regex }, { lastName: regex }, { email: regex }];
+  }
+  return Admin.find(filter).sort({ createdAt: -1 });
+};
+
+module.exports = { getProfile, updateProfile, changePassword, listAdmins };
