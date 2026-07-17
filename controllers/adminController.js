@@ -43,4 +43,16 @@ const listAdmins = async (req, res, next) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, changePassword, listAdmins };
+const deleteAdmin = async (req, res, next) => {
+  try {
+    if (req.admin._id.toString() === req.params.id) {
+      return sendError(res, 400, "You cannot delete your own account");
+    }
+    await adminService.removeAdmin(req.params.id);
+    return sendSuccess(res, null, "Admin deleted successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getProfile, updateProfile, changePassword, listAdmins, deleteAdmin };

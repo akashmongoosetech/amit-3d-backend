@@ -1,6 +1,6 @@
 const BookModel = require("../models/BookModel");
 
-const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const { escapeRegex } = require("../utils/helpers");
 
 const list = async ({ search, page, limit, sortBy, sortOrder }) => {
   const filter = { status: "Payment" };

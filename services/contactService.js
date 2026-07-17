@@ -1,6 +1,6 @@
 const Contact = require("../models/Contact");
 
-const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const { escapeRegex } = require("../utils/helpers");
 
 const submitContact = async (data) => {
   const contact = await Contact.create({

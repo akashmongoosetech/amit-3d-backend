@@ -26,6 +26,7 @@ const signupValidator = [
   body("mobile")
     .notEmpty()
     .withMessage("Mobile number is required")
+    .customSanitizer((value) => value.replace(/\D/g, ""))
     .matches(/^\d{10,15}$/)
     .withMessage("Mobile number must be 10–15 digits"),
 

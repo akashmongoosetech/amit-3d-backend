@@ -1,4 +1,6 @@
 const Admin = require("../models/Admin");
+const fs = require("fs");
+const path = require("path");
 
 const getProfile = async (id) => {
   const admin = await Admin.findById(id);
@@ -50,6 +52,14 @@ const updateProfile = async (id, data) => {
       const error = new Error("An admin with this username already exists");
       error.statusCode = 409;
       throw error;
+    }
+  }
+
+  if (changedFields.profileImage) {
+    const current = await Admin.findById(id);
+    if (current?.profileImage && current.profileImage.startsWith("/uploads/")) {
+      const oldPath = path.join(__dirname, "..", current.profileImage);
+      fs.unlink(oldPath, () => {});
     }
   }
 
@@ -140,7 +150,7 @@ const changePassword = async (id, currentPassword, newPassword, confirmPassword)
   return admin;
 };
 
-const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const { escapeRegex } = require("../utils/helpers");
 
 const listAdmins = async (search) => {
   const filter = {};
@@ -151,4 +161,14 @@ const listAdmins = async (search) => {
   return Admin.find(filter).sort({ createdAt: -1 });
 };
 
-module.exports = { getProfile, updateProfile, changePassword, listAdmins };
+const removeAdmin = async (id) => {
+  const admin = await Admin.findByIdAndDelete(id);
+  if (!admin) {
+    const error = new Error("Admin not found");
+    error.statusCode = 404;
+    throw error;
+  }
+  return admin;
+};
+
+module.exports = { getProfile, updateProfile, changePassword, listAdmins, removeAdmin };

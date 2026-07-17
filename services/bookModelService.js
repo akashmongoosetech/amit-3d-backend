@@ -1,6 +1,6 @@
 const BookModel = require("../models/BookModel");
 
-const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const { escapeRegex } = require("../utils/helpers");
 
 const create = async (data) => {
   const booking = await BookModel.create({
