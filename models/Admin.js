@@ -55,6 +55,22 @@ const adminSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    otpHash: {
+      type: String,
+      default: "",
+    },
+    otpExpires: {
+      type: Date,
+      default: null,
+    },
+    otpVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verifyToken: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,

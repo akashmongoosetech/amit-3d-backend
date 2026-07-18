@@ -152,13 +152,21 @@ const changePassword = async (id, currentPassword, newPassword, confirmPassword)
 
 const { escapeRegex } = require("../utils/helpers");
 
-const listAdmins = async (search) => {
+const listAdmins = async (search, page = 1, limit = 20) => {
   const filter = {};
   if (search) {
     const regex = new RegExp(escapeRegex(search.trim()), "i");
     filter.$or = [{ firstName: regex }, { lastName: regex }, { email: regex }];
   }
-  return Admin.find(filter).sort({ createdAt: -1 });
+  const skip = (page - 1) * limit;
+  const [admins, total] = await Promise.all([
+    Admin.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Admin.countDocuments(filter),
+  ]);
+  return {
+    admins,
+    pagination: { page, limit, totalRecords: total, totalPages: Math.ceil(total / limit) },
+  };
 };
 
 const removeAdmin = async (id) => {

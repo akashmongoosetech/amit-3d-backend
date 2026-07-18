@@ -1,3 +1,5 @@
+const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const Admin = require("../models/Admin");
 const generateToken = require("../utils/generateToken");
 const { sendError } = require("../utils/responseHandler");
@@ -78,4 +80,93 @@ const getAdminById = async (id) => {
   return admin;
 };
 
-module.exports = { createAdmin, authenticateAdmin, getAdminById };
+const sendOtp = async (identifier) => {
+  const trimmed = identifier.trim().toLowerCase();
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+
+  const admin = await Admin.findOne(
+    isEmail
+      ? { email: trimmed }
+      : { $or: [{ username: trimmed }, { mobile: trimmed }] }
+  );
+
+  if (!admin) {
+    const error = new Error("No account found with that email, username or mobile");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const otp = crypto.randomInt(100000, 999999).toString();
+  const otpHash = await bcrypt.hash(otp, 10);
+  admin.otpHash = otpHash;
+  admin.otpExpires = new Date(Date.now() + 600000);
+  admin.otpVerified = false;
+  admin.verifyToken = "";
+  await admin.save();
+
+  return { otp, email: admin.email };
+};
+
+const verifyOtp = async (email, otp) => {
+  const admin = await Admin.findOne({ email: email.toLowerCase() });
+  if (!admin || !admin.otpHash || !admin.otpExpires) {
+    const error = new Error("No OTP request found. Please request a new OTP.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (admin.otpExpires < new Date()) {
+    admin.otpHash = "";
+    admin.otpExpires = null;
+    await admin.save();
+    const error = new Error("OTP has expired. Please request a new one.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const isValid = await bcrypt.compare(otp, admin.otpHash);
+  if (!isValid) {
+    const error = new Error("Invalid OTP");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const verifyToken = crypto.randomBytes(32).toString("hex");
+  admin.otpHash = "";
+  admin.otpExpires = null;
+  admin.otpVerified = true;
+  admin.verifyToken = verifyToken;
+  await admin.save();
+
+  return verifyToken;
+};
+
+const resetPassword = async (verifyToken, newPassword, confirmPassword) => {
+  if (newPassword !== confirmPassword) {
+    const error = new Error("Passwords do not match");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const admin = await Admin.findOne({ verifyToken, otpVerified: true });
+  if (!admin) {
+    const error = new Error("Invalid or expired verification. Please start the reset process again.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (newPassword.length < 8) {
+    const error = new Error("Password must be at least 8 characters");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  admin.password = newPassword;
+  admin.otpVerified = false;
+  admin.verifyToken = "";
+  await admin.save();
+
+  return admin;
+};
+
+module.exports = { createAdmin, authenticateAdmin, getAdminById, sendOtp, verifyOtp, resetPassword };

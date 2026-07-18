@@ -1,9 +1,11 @@
 const authService = require("../services/authService");
+const { sendOtpEmail } = require("../services/emailService");
 const { sendSuccess, sendError } = require("../utils/responseHandler");
 
 const signup = async (req, res, next) => {
   try {
-    const { firstName, lastName, email, mobile, username, password, profileImage } = req.body;
+    const { firstName, lastName, email, mobile, username, password } = req.body;
+    const profileImage = req.file ? `/uploads/${req.file.filename}` : "";
     const result = await authService.createAdmin({
       firstName,
       lastName,
@@ -64,4 +66,54 @@ const logout = async (_req, res) => {
   return sendSuccess(res, null, "Logged out successfully");
 };
 
-module.exports = { signup, login, getCurrentAdmin, logout };
+const sendOtp = async (req, res, next) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier) return sendError(res, 400, "Email, username or mobile is required");
+
+    const { otp, email } = await authService.sendOtp(identifier);
+
+    try {
+      await sendOtpEmail(email, otp);
+    } catch (emailErr) {
+      console.error("sendOtpEmail failed:", emailErr.message);
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[DEV] OTP for ${email}: ${otp}`);
+        return sendSuccess(res, { email: email.replace(/(?<=.{3}).(?=.*@)/g, "*") }, `[DEV] OTP ${otp} — sent to ${email}`);
+      }
+      return sendError(res, 500, "Failed to send OTP email. Please check SMTP credentials and try again.");
+    }
+
+    return sendSuccess(res, { email: email.replace(/(?<=.{3}).(?=.*@)/g, "*") }, "OTP sent to your email");
+  } catch (err) {
+    next(err);
+  }
+};
+
+const verifyOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return sendError(res, 400, "Email and OTP are required");
+
+    const verifyToken = await authService.verifyOtp(email, otp);
+    return sendSuccess(res, { verifyToken }, "OTP verified successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { verifyToken, password, confirmPassword } = req.body;
+    if (!verifyToken || !password || !confirmPassword) {
+      return sendError(res, 400, "verifyToken, password and confirmPassword are required");
+    }
+
+    await authService.resetPassword(verifyToken, password, confirmPassword);
+    return sendSuccess(res, null, "Password reset successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { signup, login, getCurrentAdmin, logout, sendOtp, verifyOtp, resetPassword };

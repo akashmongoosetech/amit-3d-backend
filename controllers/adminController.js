@@ -35,9 +35,9 @@ const changePassword = async (req, res, next) => {
 
 const listAdmins = async (req, res, next) => {
   try {
-    const { search } = req.query;
-    const admins = await adminService.listAdmins(search);
-    return sendSuccess(res, admins, "Admins fetched successfully");
+    const { search, page, limit } = req.query;
+    const result = await adminService.listAdmins(search, Number(page) || 1, Number(limit) || 20);
+    return sendSuccess(res, result, "Admins fetched successfully");
   } catch (err) {
     next(err);
   }

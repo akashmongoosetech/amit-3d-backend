@@ -4,6 +4,27 @@ const Admin = require("../models/Admin");
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+const cache = new Map();
+const CACHE_TTL = 60_000;
+
+function cacheKey(name, ...args) {
+  return `${name}_${args.join("_")}`;
+}
+
+function fromCache(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function toCache(key, data) {
+  cache.set(key, { data, ts: Date.now() });
+}
+
 function dateFilter(period, fromDate, toDate, field) {
   const f = field || "createdAt";
   const now = new Date();
@@ -105,7 +126,8 @@ async function getCharts(period, fromDate, toDate) {
     {
       $group: {
         _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } },
-        count: { $sum: 1 },
+        bookings: { $sum: 1 },
+        orders: { $sum: { $cond: [{ $eq: ["$status", "Payment"] }, 1, 0] } },
       },
     },
     { $sort: { "_id.year": 1, "_id.month": 1 } },
@@ -118,7 +140,7 @@ async function getCharts(period, fromDate, toDate) {
             in: { $arrayElemAt: [MONTHS, { $subtract: ["$$m", 1] }] },
           },
         },
-        count: 1,
+        bookings: 1, orders: 1,
       },
     },
   ];
@@ -193,15 +215,10 @@ async function getCharts(period, fromDate, toDate) {
       BookModel.aggregate(customerGrowthPipe),
     ]);
 
-  const monthlyOrders = await BookModel.aggregate([
-    { $match: { ...df, status: "Payment" } },
-    ...monthlyPipe.slice(1),
-  ]);
-
   const revenueVsOrders = monthlyBookings.map((m) => ({
     month: m.month,
     revenue: 0,
-    orders: monthlyOrders.find((o) => o.month === m.month)?.count || 0,
+    orders: m.orders || 0,
   }));
 
   return { bookingStatusDist, orderStatusDist, monthlyBookings, revenueVsOrders, topModels, dailyTrend30, dailyTrend90, customerGrowth };
@@ -263,4 +280,22 @@ async function getPipeline() {
   return { stages: pipeline, completionPercentage, totalInPipeline: total, inProgress };
 }
 
-module.exports = { getSummary, getCharts, getRecentOrders, getRecentContacts, getActivities, getPipeline };
+function withCache(fn, name) {
+  return async (...args) => {
+    const key = cacheKey(name, ...args.map((a) => (a instanceof Date ? a.toISOString() : String(a))));
+    const cached = fromCache(key);
+    if (cached !== null) return cached;
+    const result = await fn(...args);
+    toCache(key, result);
+    return result;
+  };
+}
+
+module.exports = {
+  getSummary: withCache(getSummary, "getSummary"),
+  getCharts: withCache(getCharts, "getCharts"),
+  getRecentOrders: withCache(getRecentOrders, "getRecentOrders"),
+  getRecentContacts: withCache(getRecentContacts, "getRecentContacts"),
+  getActivities: withCache(getActivities, "getActivities"),
+  getPipeline: withCache(getPipeline, "getPipeline"),
+};
