@@ -101,4 +101,109 @@ const sendOtpEmail = async (to, otp) => {
   });
 };
 
-module.exports = { sendOtpEmail };
+const sendWelcomeEmail = async (to) => {
+  if (!env.SMTP_USER || !env.SMTP_PASS) {
+    console.warn("SMTP not configured — skipping welcome email");
+    return;
+  }
+
+  await transporter.sendMail({
+    from: `"Verto3D" <${env.SMTP_USER}>`,
+    to,
+    subject: "🎉 Welcome to Our Community – Thanks for Subscribing!",
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin:0;padding:0;background-color:#f4f2ed;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f2ed;">
+            <tr>
+              <td align="center" style="padding:40px 16px;">
+                <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
+                  <tr>
+                    <td style="background-color:#ffffff;border-radius:16px;padding:40px 32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="text-align:center;padding-bottom:24px;border-bottom:1px solid #f0ede8;">
+                            <span style="font-size:14px;letter-spacing:4px;text-transform:uppercase;color:#b8a88a;">
+                              <span style="color:#c8963e;">&#x229b;</span> Verto3D
+                            </span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:32px 0 8px;text-align:center;">
+                            <h1 style="margin:0;font-size:24px;font-weight:600;color:#1a1a1a;letter-spacing:-0.3px;">
+                              Welcome to Our Community
+                            </h1>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:0 0 16px;">
+                            <p style="margin:0;font-size:15px;color:#6b6b6b;line-height:1.6;">
+                              Hello,
+                            </p>
+                            <p style="margin:12px 0 0;font-size:15px;color:#6b6b6b;line-height:1.6;">
+                              Thank you for subscribing to our newsletter. We're excited to have you join our community.
+                            </p>
+                            <p style="margin:12px 0 0;font-size:15px;color:#6b6b6b;line-height:1.6;">
+                              You'll now receive updates about:
+                            </p>
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 0;">
+                              <tr><td style="padding:3px 0;font-size:14px;color:#6b6b6b;">&bull; New services and features</td></tr>
+                              <tr><td style="padding:3px 0;font-size:14px;color:#6b6b6b;">&bull; Product announcements</td></tr>
+                              <tr><td style="padding:3px 0;font-size:14px;color:#6b6b6b;">&bull; Industry insights</td></tr>
+                              <tr><td style="padding:3px 0;font-size:14px;color:#6b6b6b;">&bull; Special offers and promotions</td></tr>
+                              <tr><td style="padding:3px 0;font-size:14px;color:#6b6b6b;">&bull; Helpful tips and resources</td></tr>
+                            </table>
+                            <p style="margin:16px 0 0;font-size:15px;color:#6b6b6b;line-height:1.6;">
+                              We're committed to providing valuable content and keeping you informed.
+                            </p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:20px 0;text-align:center;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                              <tr>
+                                <td style="background-color:#c8963e;border-radius:8px;padding:0;">
+                                  <a href="${env.CLIENT_URL}" target="_blank" style="display:inline-block;padding:14px 36px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Visit Our Website</a>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding:24px 0 0;border-top:1px solid #f0ede8;text-align:center;">
+                            <p style="margin:0;font-size:13px;color:#b0b0b0;line-height:1.5;">
+                              Thank you for your support and trust. We look forward to sharing exciting updates with you.
+                            </p>
+                            <p style="margin:16px 0 0;font-size:11px;color:#c8c8c8;">
+                              Verto3D &middot; 3D Printing Solutions<br>
+                              <span style="color:#c8963e;">&#x229b;</span>
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:16px 0 0;text-align:center;">
+                      <p style="margin:0;font-size:11px;color:#c0c0c0;">
+                        You received this because you subscribed to the Verto3D newsletter.<br>
+                        &copy; ${new Date().getFullYear()} Verto3D Studio. All rights reserved.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `,
+  });
+};
+
+module.exports = { sendOtpEmail, sendWelcomeEmail };

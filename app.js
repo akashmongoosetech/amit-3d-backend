@@ -10,6 +10,7 @@ const contactRoutes = require("./routes/contactRoutes");
 const bookModelRoutes = require("./routes/bookModelRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const subscriberRoutes = require("./routes/subscriberRoutes");
 const errorHandler = require("./middleware/errorMiddleware");
 const { sendError } = require("./utils/responseHandler");
 
@@ -51,6 +52,7 @@ app.use("/api/contact", contactRoutes);
 app.use("/api/book-model", bookModelRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/newsletter", subscriberRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("*", (_req, res) => {
