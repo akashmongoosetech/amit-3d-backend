@@ -22,4 +22,5 @@ module.exports = {
   SMTP_SECURE: process.env.SMTP_SECURE === "true",
   SMTP_USER: process.env.SMTP_USER || "",
   SMTP_PASS: process.env.SMTP_PASS || "",
+  LOG_OTP_IN_CONSOLE: process.env.LOG_OTP_IN_CONSOLE === "true",
 };

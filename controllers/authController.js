@@ -77,7 +77,8 @@ const sendOtp = async (req, res, next) => {
       await sendOtpEmail(email, otp);
     } catch (emailErr) {
       console.error("sendOtpEmail failed:", emailErr.message);
-      if (process.env.NODE_ENV !== "production") {
+      const showOtp = process.env.NODE_ENV !== "production" || process.env.LOG_OTP_IN_CONSOLE === "true";
+      if (showOtp) {
         console.log(`[DEV] OTP for ${email}: ${otp}`);
         return sendSuccess(res, { email: email.replace(/(?<=.{3}).(?=.*@)/g, "*") }, `[DEV] OTP ${otp} — sent to ${email}`);
       }
