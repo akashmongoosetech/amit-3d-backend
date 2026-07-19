@@ -35,7 +35,18 @@ app.use(
     },
   })
 );
-app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
+const corsOptions = {
+  origin: (origin, cb) => {
+    // Allow requests with no origin (curl, Postman, server-to-server)
+    if (!origin) return cb(null, true);
+
+    const allowed = env.CLIENT_URL.replace(/\/+$/, "");
+    const incoming = origin.replace(/\/+$/, "");
+    cb(null, allowed === incoming);
+  },
+  credentials: true,
+};
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
 
