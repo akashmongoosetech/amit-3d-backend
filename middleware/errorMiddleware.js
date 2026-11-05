@@ -24,13 +24,13 @@ const errorHandler = (err, req, res, _next) => {
 
   if (err.code === 11000) {
     statusCode = 409;
-    const field = Object.keys(err.keyValue)[0];
-    message = `An admin with this ${field} already exists`;
+    const field = (err.keyValue && Object.keys(err.keyValue)[0]) || "field";
+    message = `An entry with this ${field} already exists`;
   }
 
   if (err.name === "CastError") {
     statusCode = 400;
-    message = `Invalid ${err.path}: ${err.value}`;
+    message = `Invalid ${err.path}`;
   }
 
   if (err.name === "JsonWebTokenError") {
@@ -44,7 +44,9 @@ const errorHandler = (err, req, res, _next) => {
   }
 
   if (process.env.NODE_ENV === "production") {
-    return sendError(res, message, statusCode);
+    // M6: never leak internal details; only allow safe 4xx messages
+    const safe = statusCode < 500 ? message : "Internal Server Error";
+    return sendError(res, safe, statusCode >= 500 ? 500 : statusCode);
   }
 
   res.status(statusCode).json({

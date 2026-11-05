@@ -1,6 +1,7 @@
 const Admin = require("../models/Admin");
-const fs = require("fs");
+const fs = require("fs").promises;
 const path = require("path");
+const { validateStrongPassword, escapeRegex, sanitizeSort } = require("../utils/helpers");
 
 const getProfile = async (id) => {
   const admin = await Admin.findById(id);
@@ -58,8 +59,14 @@ const updateProfile = async (id, data) => {
   if (changedFields.profileImage) {
     const current = await Admin.findById(id);
     if (current?.profileImage && current.profileImage.startsWith("/uploads/")) {
-      const oldPath = path.join(__dirname, "..", current.profileImage);
-      fs.unlink(oldPath, () => {});
+      // M8: safe path resolution + awaited cleanup (no fire-and-forget)
+      const safeName = path.basename(current.profileImage);
+      const oldPath = path.join(__dirname, "..", "uploads", safeName);
+      try {
+        await fs.unlink(oldPath);
+      } catch (_) {
+        /* already removed — ignore */
+      }
     }
   }
 
@@ -102,70 +109,44 @@ const changePassword = async (id, currentPassword, newPassword, confirmPassword)
     throw error;
   }
 
-  if (newPassword.length < 8) {
-    const error = new Error("Password must be at least 8 characters");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (!/[A-Z]/.test(newPassword)) {
-    const error = new Error("Password must contain one uppercase letter");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (!/[a-z]/.test(newPassword)) {
-    const error = new Error("Password must contain one lowercase letter");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (!/[0-9]/.test(newPassword)) {
-    const error = new Error("Password must contain one number");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (!/[^A-Za-z0-9]/.test(newPassword)) {
-    const error = new Error("Password must contain one special character");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (newPassword.toLowerCase().includes(admin.firstName?.toLowerCase())) {
-    const error = new Error("Password must not contain your first name");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (newPassword.toLowerCase().includes(admin.lastName?.toLowerCase())) {
-    const error = new Error("Password must not contain your last name");
+  const policyError = validateStrongPassword(newPassword, {
+    firstName: admin.firstName,
+    lastName: admin.lastName,
+  });
+  if (policyError) {
+    const error = new Error(policyError);
     error.statusCode = 400;
     throw error;
   }
 
   admin.password = newPassword;
+  admin.tokenVersion = (admin.tokenVersion || 0) + 1;
   await admin.save();
 
   return admin;
 };
 
-const { escapeRegex } = require("../utils/helpers");
-
-const listAdmins = async (search, page = 1, limit = 20) => {
-  const filter = {};
-  if (search) {
-    const regex = new RegExp(escapeRegex(search.trim()), "i");
-    filter.$or = [{ firstName: regex }, { lastName: regex }, { email: regex }];
+const listAdmins = async (search, page = 1, limit = 20, sortBy, sortOrder) => {
+  const filter = { isActive: { $ne: false } };
+  if (search && typeof search === "string") {
+    const trimmed = search.trim();
+    if (trimmed) {
+      const regex = new RegExp(escapeRegex(trimmed), "i");
+      filter.$or = [{ firstName: regex }, { lastName: regex }, { email: regex }];
+    }
   }
-  const skip = (page - 1) * limit;
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+  const skip = (pageNum - 1) * limitNum;
+  const sortField = sanitizeSort(sortBy);
+  const sortDir = sortOrder === "asc" ? 1 : -1;
   const [admins, total] = await Promise.all([
-    Admin.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Admin.find(filter).sort({ [sortField]: sortDir }).skip(skip).limit(limitNum),
     Admin.countDocuments(filter),
   ]);
   return {
     admins,
-    pagination: { page, limit, totalRecords: total, totalPages: Math.ceil(total / limit) },
+    pagination: { page: pageNum, limit: limitNum, totalRecords: total, totalPages: Math.ceil(total / limitNum) },
   };
 };
 
@@ -175,6 +156,15 @@ const removeAdmin = async (id) => {
     const error = new Error("Admin not found");
     error.statusCode = 404;
     throw error;
+  }
+  // M8: cleanup profile image on delete
+  if (admin.profileImage && admin.profileImage.startsWith("/uploads/")) {
+    const safeName = path.basename(admin.profileImage);
+    try {
+      await fs.unlink(path.join(__dirname, "..", "uploads", safeName));
+    } catch (_) {
+      /* ignore */
+    }
   }
   return admin;
 };

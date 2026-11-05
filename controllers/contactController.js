@@ -1,11 +1,18 @@
 const contactService = require("../services/contactService");
 const { sendSuccess } = require("../utils/responseHandler");
+const { invalidateDashboardCache } = require("../services/dashboardService");
 
 const submit = async (req, res, next) => {
   try {
     const { name, email, mobile, company, budget, message } = req.body;
     const contact = await contactService.submitContact({ name, email, mobile, company, budget, message });
     const msg = "Thanks for reaching out. We'll review your project and be in touch within one business day.";
+    // Invalidate summary and charts for common periods (today, 7d) after contact submission
+    const keys = [
+      "getSummary_today", "getSummary_7d", "getSummary_30d", "getSummary_90d", "getSummary_1y",
+      "getCharts_today", "getCharts_7d", "getCharts_30d",
+    ];
+    invalidateDashboardCache(keys);
     return sendSuccess(res, { id: contact._id, message: msg }, msg, 201);
   } catch (err) {
     next(err);
@@ -34,6 +41,12 @@ const updateStatus = async (req, res, next) => {
     if (!contact) {
       return res.status(404).json({ success: false, message: "Contact not found" });
     }
+    // Invalidate summary and charts for common periods after contact status update
+    const keys = [
+      "getSummary_today", "getSummary_7d", "getSummary_30d", "getSummary_90d", "getSummary_1y",
+      "getCharts_today", "getCharts_7d", "getCharts_30d",
+    ];
+    invalidateDashboardCache(keys);
     return sendSuccess(res, contact, `Status updated to ${status}`);
   } catch (err) {
     next(err);

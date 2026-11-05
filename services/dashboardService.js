@@ -5,10 +5,24 @@ const Admin = require("../models/Admin");
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 const cache = new Map();
-const CACHE_TTL = 60_000;
+const CACHE_TTL = 300_000; // 5 minutes - dashboard data doesn't need sub-minute freshness
+
+// Track active cache keys for granular invalidation
+const activeKeys = new Set();
+const CACHE_MAX = 200;
+
+function normalizeArg(a) {
+  const s = a instanceof Date ? a.toISOString() : String(a);
+  // M7: bound key length to prevent memory growth via random dates
+  return s.length > 64 ? s.slice(0, 64) : s;
+}
 
 function cacheKey(name, ...args) {
-  return `${name}_${args.join("_")}`;
+  const allowedPeriods = new Set(["today", "yesterday", "7d", "30d", "90d", "1y", "custom", "undefined", "null"]);
+  const norm = args.map((a, i) => (i === 0 && !allowedPeriods.has(normalizeArg(a)) ? "custom" : normalizeArg(a)));
+  const key = `${name}_${norm.join("_")}`;
+  activeKeys.add(key);
+  return key;
 }
 
 function fromCache(key) {
@@ -16,13 +30,36 @@ function fromCache(key) {
   if (!entry) return null;
   if (Date.now() - entry.ts > CACHE_TTL) {
     cache.delete(key);
+    activeKeys.delete(key);
     return null;
   }
   return entry.data;
 }
 
 function toCache(key, data) {
+  // M7: LRU-ish eviction to bound memory
+  if (cache.size >= CACHE_MAX) {
+    const oldest = cache.keys().next().value;
+    cache.delete(oldest);
+    // Also remove from active tracking if being evicted
+    activeKeys.delete(oldest);
+  }
   cache.set(key, { data, ts: Date.now() });
+}
+
+// M12: Granular cache invalidation - only invalidate specific keys instead of entire cache
+function invalidateDashboardCache(keysToInvalidate) {
+  if (keysToInvalidate && keysToInvalidate.length > 0) {
+    // Only invalidate specified keys
+    for (const key of keysToInvalidate) {
+      cache.delete(key);
+      activeKeys.delete(key);
+    }
+  } else {
+    // fallback: clear entire cache if no keys specified
+    cache.clear();
+    activeKeys.clear();
+  }
 }
 
 function dateFilter(period, fromDate, toDate, field) {
@@ -298,4 +335,5 @@ module.exports = {
   getRecentContacts: withCache(getRecentContacts, "getRecentContacts"),
   getActivities: withCache(getActivities, "getActivities"),
   getPipeline: withCache(getPipeline, "getPipeline"),
+  invalidateDashboardCache,
 };

@@ -1,6 +1,6 @@
 const Contact = require("../models/Contact");
 
-const { escapeRegex } = require("../utils/helpers");
+const { escapeRegex, sanitizeSort } = require("../utils/helpers");
 
 const submitContact = async (data) => {
   const contact = await Contact.create({
@@ -18,7 +18,7 @@ const submitContact = async (data) => {
 const listContacts = async ({ search, status, fromDate, toDate, page, limit, sortBy, sortOrder }) => {
   const filter = {};
 
-  if (search) {
+  if (search && typeof search === "string") {
     const trimmed = search.trim();
     if (trimmed) {
       const regex = new RegExp(escapeRegex(trimmed), "i");
@@ -30,27 +30,29 @@ const listContacts = async ({ search, status, fromDate, toDate, page, limit, sor
     }
   }
 
-  if (status && status !== "All") {
+  const ALLOWED_STATUSES = new Set(["New", "Pending", "Talk", "Resolved"]);
+  if (status && status !== "All" && ALLOWED_STATUSES.has(status)) {
     filter.status = status;
   }
 
   if (fromDate || toDate) {
     filter.createdAt = {};
-    if (fromDate) {
+    if (fromDate && typeof fromDate === "string" && !Number.isNaN(Date.parse(fromDate))) {
       filter.createdAt.$gte = new Date(fromDate);
     }
-    if (toDate) {
+    if (toDate && typeof toDate === "string" && !Number.isNaN(Date.parse(toDate))) {
       const endDate = new Date(toDate);
       endDate.setHours(23, 59, 59, 999);
       filter.createdAt.$lte = endDate;
     }
+    if (Object.keys(filter.createdAt).length === 0) delete filter.createdAt;
   }
 
   const pageNum = Math.max(1, parseInt(page) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
   const skip = (pageNum - 1) * limitNum;
 
-  const sortField = sortBy || "createdAt";
+  const sortField = sanitizeSort(sortBy);
   const sortDir = sortOrder === "asc" ? 1 : -1;
 
   const [contacts, totalRecords] = await Promise.all([

@@ -21,6 +21,7 @@ const updateProfileValidator = [
 
   body("mobile")
     .optional()
+    .customSanitizer((value) => (typeof value === "string" ? value.replace(/\D/g, "") : value))
     .matches(/^\d{10,15}$/)
     .withMessage("Mobile number must be 10–15 digits"),
 

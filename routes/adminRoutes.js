@@ -8,7 +8,7 @@ const {
   deleteAdmin,
 } = require("../controllers/adminController");
 const { getDashboardData } = require("../controllers/dashboardController");
-const { protect } = require("../middleware/authMiddleware");
+const { protect, authorize } = require("../middleware/authMiddleware");
 const validate = require("../middleware/validateMiddleware");
 const {
   updateProfileValidator,
@@ -17,8 +17,8 @@ const {
 const upload = require("../config/multer");
 
 router.get("/profile", protect, getProfile);
-router.get("/users", protect, listAdmins);
-router.delete("/users/:id", protect, deleteAdmin);
+router.get("/users", protect, authorize("superadmin"), listAdmins);
+router.delete("/users/:id", protect, authorize("superadmin"), deleteAdmin);
 router.get("/dashboard", protect, getDashboardData);
 
 router.put(

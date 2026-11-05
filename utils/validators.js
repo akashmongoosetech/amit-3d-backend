@@ -75,9 +75,65 @@ const loginValidator = [
   body("identifier")
     .notEmpty()
     .withMessage("Email, mobile or username is required")
+    .isString()
+    .withMessage("Identifier must be a string")
     .trim(),
 
-  body("password").notEmpty().withMessage("Password is required"),
+  body("password").notEmpty().withMessage("Password is required").isString().withMessage("Password must be a string"),
 ];
 
-module.exports = { signupValidator, loginValidator };
+const otpRequestValidator = [
+  body("identifier")
+    .notEmpty()
+    .withMessage("Email, username or mobile is required")
+    .isString()
+    .withMessage("Identifier must be a string")
+    .trim()
+    .isLength({ min: 3, max: 254 })
+    .withMessage("Identifier must be 3–254 characters"),
+];
+
+const otpVerifyValidator = [
+  body("email").notEmpty().withMessage("Email is required").isEmail().withMessage("Invalid email format").normalizeEmail(),
+  body("otp")
+    .notEmpty()
+    .withMessage("OTP is required")
+    .isString()
+    .withMessage("OTP must be a string")
+    .trim()
+    .matches(/^\d{6}$/)
+    .withMessage("OTP must be 6 digits"),
+];
+
+const resetPasswordValidator = [
+  body("verifyToken")
+    .notEmpty()
+    .withMessage("Verification token is required")
+    .isString()
+    .withMessage("Invalid verification token")
+    .trim()
+    .isLength({ min: 32, max: 128 })
+    .withMessage("Invalid verification token"),
+  body("password")
+    .notEmpty()
+    .withMessage("Password is required")
+    .isLength({ min: 8 })
+    .withMessage("Password must be at least 8 characters")
+    .matches(/[A-Z]/)
+    .withMessage("Password must contain one uppercase letter")
+    .matches(/[a-z]/)
+    .withMessage("Password must contain one lowercase letter")
+    .matches(/[0-9]/)
+    .withMessage("Password must contain one number")
+    .matches(/[^A-Za-z0-9]/)
+    .withMessage("Password must contain one special character"),
+  body("confirmPassword")
+    .notEmpty()
+    .withMessage("Confirm password is required")
+    .custom((value, { req }) => {
+      if (value !== req.body.password) throw new Error("Passwords do not match");
+      return true;
+    }),
+];
+
+module.exports = { signupValidator, loginValidator, otpRequestValidator, otpVerifyValidator, resetPasswordValidator };

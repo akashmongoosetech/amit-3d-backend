@@ -35,8 +35,8 @@ const changePassword = async (req, res, next) => {
 
 const listAdmins = async (req, res, next) => {
   try {
-    const { search, page, limit } = req.query;
-    const result = await adminService.listAdmins(search, Number(page) || 1, Number(limit) || 20);
+    const { search, page, limit, sortBy, sortOrder } = req.query;
+    const result = await adminService.listAdmins(search, Number(page) || 1, Number(limit) || 20, sortBy, sortOrder);
     return sendSuccess(res, result, "Admins fetched successfully");
   } catch (err) {
     next(err);
@@ -46,7 +46,7 @@ const listAdmins = async (req, res, next) => {
 const deleteAdmin = async (req, res, next) => {
   try {
     if (req.admin._id.toString() === req.params.id) {
-      return sendError(res, 400, "You cannot delete your own account");
+      return sendError(res, "You cannot delete your own account", 400);
     }
     await adminService.removeAdmin(req.params.id);
     return sendSuccess(res, null, "Admin deleted successfully");

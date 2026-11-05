@@ -1,6 +1,6 @@
 const BookModel = require("../models/BookModel");
 
-const { escapeRegex } = require("../utils/helpers");
+const { escapeRegex, sanitizeSort } = require("../utils/helpers");
 
 const create = async (data) => {
   const booking = await BookModel.create({
@@ -27,7 +27,7 @@ const list = async ({
 }) => {
   const filter = {};
 
-  if (search) {
+  if (search && typeof search === "string") {
     const trimmed = search.trim();
     if (trimmed) {
       const regex = new RegExp(escapeRegex(trimmed), "i");
@@ -35,27 +35,29 @@ const list = async ({
     }
   }
 
-  if (status && status !== "All") {
+  const ALLOWED_STATUSES = new Set(["New Order", "Contact", "Payment", "Start Project", "Complete", "On Way", "Delivered"]);
+  if (status && status !== "All" && ALLOWED_STATUSES.has(status)) {
     filter.status = status;
   }
 
   if (fromDate || toDate) {
     filter.createdAt = {};
-    if (fromDate) {
+    if (fromDate && typeof fromDate === "string" && !Number.isNaN(Date.parse(fromDate))) {
       filter.createdAt.$gte = new Date(fromDate);
     }
-    if (toDate) {
+    if (toDate && typeof toDate === "string" && !Number.isNaN(Date.parse(toDate))) {
       const endDate = new Date(toDate);
       endDate.setHours(23, 59, 59, 999);
       filter.createdAt.$lte = endDate;
     }
+    if (Object.keys(filter.createdAt).length === 0) delete filter.createdAt;
   }
 
   const pageNum = Math.max(1, parseInt(page) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
   const skip = (pageNum - 1) * limitNum;
 
-  const sortField = sortBy || "createdAt";
+  const sortField = sanitizeSort(sortBy);
   const sortDir = sortOrder === "asc" ? 1 : -1;
 
   const [bookings, totalRecords] = await Promise.all([
@@ -91,8 +93,19 @@ const updateStatus = async (id, status) => {
   return booking;
 };
 
+const path = require("path");
+const fs = require("fs").promises;
+
 const delete_ = async (id) => {
   const booking = await BookModel.findByIdAndDelete(id);
+  if (booking?.referenceImage && booking.referenceImage.startsWith("/uploads/")) {
+    const safeName = path.basename(booking.referenceImage);
+    try {
+      await fs.unlink(path.join(__dirname, "..", "uploads", safeName));
+    } catch (_) {
+      /* ignore */
+    }
+  }
   return booking;
 };
 

@@ -10,6 +10,11 @@ for (const varName of requiredVars) {
   }
 }
 
+const parseBool = (v, def = false) => {
+  if (v === undefined) return def;
+  return ["true", "1", "yes"].includes(String(v).toLowerCase());
+};
+
 module.exports = {
   PORT: process.env.PORT || 5000,
   NODE_ENV: process.env.NODE_ENV || "development",
@@ -19,8 +24,10 @@ module.exports = {
   CLIENT_URL: process.env.CLIENT_URL || "http://localhost:5173",
   SMTP_HOST: process.env.SMTP_HOST || "smtp.zoho.com",
   SMTP_PORT: parseInt(process.env.SMTP_PORT || "465", 10),
-  SMTP_SECURE: process.env.SMTP_SECURE === "true",
+  SMTP_SECURE: parseBool(process.env.SMTP_SECURE, true),
   SMTP_USER: process.env.SMTP_USER || "",
   SMTP_PASS: process.env.SMTP_PASS || "",
-  LOG_OTP_IN_CONSOLE: process.env.LOG_OTP_IN_CONSOLE === "true",
+  LOG_OTP_IN_CONSOLE: parseBool(process.env.LOG_OTP_IN_CONSOLE, false),
+  ALLOW_PUBLIC_SIGNUP: parseBool(process.env.ALLOW_PUBLIC_SIGNUP, false),
+  ADMIN_SETUP_KEY: process.env.ADMIN_SETUP_KEY || "",
 };

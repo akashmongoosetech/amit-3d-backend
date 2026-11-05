@@ -1,5 +1,6 @@
 const bookModelService = require("../services/bookModelService");
 const { sendSuccess } = require("../utils/responseHandler");
+const { invalidateDashboardCache } = require("../services/dashboardService");
 
 const create = async (req, res, next) => {
   try {
@@ -20,6 +21,12 @@ const create = async (req, res, next) => {
 
     const msg =
       "Booking request submitted successfully! We'll review your project and be in touch within one business day.";
+    // Invalidate summary and charts for common periods after new booking
+    const keys = [
+      "getSummary_today", "getSummary_7d", "getSummary_30d", "getSummary_90d", "getSummary_1y",
+      "getCharts_today", "getCharts_7d", "getCharts_30d",
+    ];
+    invalidateDashboardCache(keys);
     return sendSuccess(res, { id: booking._id }, msg, 201);
   } catch (err) {
     next(err);
@@ -83,6 +90,12 @@ const updateStatus = async (req, res, next) => {
         .status(404)
         .json({ success: false, message: "Booking not found" });
     }
+    // Invalidate summary and charts for common periods after status update
+    const keys = [
+      "getSummary_today", "getSummary_7d", "getSummary_30d", "getSummary_90d", "getSummary_1y",
+      "getCharts_today", "getCharts_7d", "getCharts_30d",
+    ];
+    invalidateDashboardCache(keys);
     return sendSuccess(res, booking, `Status updated to ${status}`);
   } catch (err) {
     next(err);
@@ -98,6 +111,12 @@ const delete_ = async (req, res, next) => {
         .status(404)
         .json({ success: false, message: "Booking not found" });
     }
+    // Invalidate summary and charts for common periods after booking deletion
+    const keys = [
+      "getSummary_today", "getSummary_7d", "getSummary_30d", "getSummary_90d", "getSummary_1y",
+      "getCharts_today", "getCharts_7d", "getCharts_30d",
+    ];
+    invalidateDashboardCache(keys);
     return sendSuccess(res, null, "Booking deleted successfully");
   } catch (err) {
     next(err);

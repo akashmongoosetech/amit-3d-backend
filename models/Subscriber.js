@@ -8,6 +8,7 @@ const subscriberSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email format"],
     },
     isActive: {
       type: Boolean,

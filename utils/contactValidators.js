@@ -41,4 +41,14 @@ const contactValidator = [
     .withMessage("Message must be at most 5000 characters"),
 ];
 
-module.exports = { contactValidator };
+const { body: _body } = require("express-validator");
+
+const contactStatusValidator = [
+  _body("status")
+    .notEmpty()
+    .withMessage("Status is required")
+    .isIn(["New", "Pending", "Talk", "Resolved"])
+    .withMessage("Invalid status value"),
+];
+
+module.exports = { contactValidator, contactStatusValidator };

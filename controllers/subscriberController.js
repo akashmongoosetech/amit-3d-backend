@@ -5,7 +5,7 @@ const { sendSuccess } = require("../utils/responseHandler");
 const subscribe = async (req, res, next) => {
   try {
     const { email } = req.body;
-    if (!email) {
+    if (!email || typeof email !== "string") {
       return res.status(400).json({ success: false, message: "Email is required" });
     }
     const subscriber = await subscriberService.subscribe(email);

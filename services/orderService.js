@@ -1,11 +1,11 @@
 const BookModel = require("../models/BookModel");
 
-const { escapeRegex } = require("../utils/helpers");
+const { escapeRegex, sanitizeSort } = require("../utils/helpers");
 
 const list = async ({ search, page, limit, sortBy, sortOrder }) => {
   const filter = { status: "Payment" };
 
-  if (search) {
+  if (search && typeof search === "string") {
     const trimmed = search.trim();
     if (trimmed) {
       const regex = new RegExp(escapeRegex(trimmed), "i");
@@ -22,7 +22,7 @@ const list = async ({ search, page, limit, sortBy, sortOrder }) => {
   const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
   const skip = (pageNum - 1) * limitNum;
 
-  const sortField = sortBy || "createdAt";
+  const sortField = sanitizeSort(sortBy);
   const sortDir = sortOrder === "asc" ? 1 : -1;
 
   const [orders, totalRecords] = await Promise.all([
@@ -50,8 +50,9 @@ const getById = async (id) => {
 };
 
 const updateOrderStatus = async (id, orderStatus) => {
-  const order = await BookModel.findByIdAndUpdate(
-    id,
+  // M3: only Payment bookings have an order lifecycle
+  const order = await BookModel.findOneAndUpdate(
+    { _id: id, status: "Payment" },
     { orderStatus },
     { new: true, runValidators: true }
   );

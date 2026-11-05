@@ -58,18 +58,32 @@ const adminSchema = new mongoose.Schema(
     otpHash: {
       type: String,
       default: "",
+      select: false,
     },
     otpExpires: {
       type: Date,
       default: null,
+      select: false,
     },
     otpVerified: {
       type: Boolean,
       default: false,
+      select: false,
     },
     verifyToken: {
       type: String,
       default: "",
+      select: false,
+    },
+    verifyTokenExpires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0,
+      select: false,
     },
   },
   {
@@ -91,6 +105,13 @@ adminSchema.methods.comparePassword = async function (candidatePassword) {
 adminSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.otpHash;
+  delete obj.otpExpires;
+  delete obj.otpVerified;
+  delete obj.verifyToken;
+  delete obj.verifyTokenExpires;
+  delete obj.tokenVersion;
+  delete obj.__v;
   return obj;
 };
 

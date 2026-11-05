@@ -1,8 +1,18 @@
 const Subscriber = require("../models/Subscriber");
-const { escapeRegex } = require("../utils/helpers");
+const { escapeRegex, sanitizeSort } = require("../utils/helpers");
 
 const subscribe = async (email) => {
+  if (typeof email !== "string") {
+    const error = new Error("Email is required");
+    error.statusCode = 400;
+    throw error;
+  }
   const trimmed = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    const error = new Error("Invalid email format");
+    error.statusCode = 400;
+    throw error;
+  }
 
   const exists = await Subscriber.findOne({ email: trimmed });
   if (exists) {
@@ -18,7 +28,7 @@ const subscribe = async (email) => {
 const listSubscribers = async ({ search, page, limit, sortBy, sortOrder }) => {
   const filter = {};
 
-  if (search) {
+  if (search && typeof search === "string") {
     const trimmed = search.trim();
     if (trimmed) {
       filter.email = new RegExp(escapeRegex(trimmed), "i");
@@ -29,7 +39,7 @@ const listSubscribers = async ({ search, page, limit, sortBy, sortOrder }) => {
   const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10));
   const skip = (pageNum - 1) * limitNum;
 
-  const sortField = sortBy || "createdAt";
+  const sortField = sanitizeSort(sortBy);
   const sortDir = sortOrder === "asc" ? 1 : -1;
 
   const [subscribers, totalRecords] = await Promise.all([

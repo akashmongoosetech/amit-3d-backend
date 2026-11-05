@@ -2,10 +2,16 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const Admin = require("../models/Admin");
 const generateToken = require("../utils/generateToken");
-const { sendError } = require("../utils/responseHandler");
+const { validateStrongPassword } = require("../utils/helpers");
 
 const createAdmin = async (data) => {
   const { firstName, lastName, email, mobile, username, password, profileImage } = data;
+
+  if (typeof email !== "string" || typeof mobile !== "string" || typeof username !== "string") {
+    const error = new Error("Invalid registration data");
+    error.statusCode = 400;
+    throw error;
+  }
 
   const existingEmail = await Admin.findOne({ email });
   if (existingEmail) {
@@ -28,6 +34,10 @@ const createAdmin = async (data) => {
     throw error;
   }
 
+  // First admin bootstraps as superadmin; all others default to admin (client role ignored)
+  const count = await Admin.countDocuments();
+  const role = count === 0 ? "superadmin" : "admin";
+
   const admin = await Admin.create({
     firstName,
     lastName,
@@ -36,6 +46,7 @@ const createAdmin = async (data) => {
     username,
     password,
     profileImage: profileImage || "",
+    role,
   });
 
   const token = generateToken(admin);
@@ -43,9 +54,14 @@ const createAdmin = async (data) => {
 };
 
 const authenticateAdmin = async (identifier, password) => {
+  if (typeof identifier !== "string" || typeof password !== "string") {
+    const error = new Error("Invalid credentials");
+    error.statusCode = 401;
+    throw error;
+  }
   const admin = await Admin.findOne({
     $or: [{ email: identifier.toLowerCase() }, { mobile: identifier }, { username: identifier.toLowerCase() }],
-  }).select("+password");
+  }).select("+password +tokenVersion");
 
   if (!admin) {
     const error = new Error("Invalid credentials");
@@ -81,6 +97,11 @@ const getAdminById = async (id) => {
 };
 
 const sendOtp = async (identifier) => {
+  if (typeof identifier !== "string") {
+    const error = new Error("Email, username or mobile is required");
+    error.statusCode = 400;
+    throw error;
+  }
   const trimmed = identifier.trim().toLowerCase();
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
 
@@ -102,13 +123,21 @@ const sendOtp = async (identifier) => {
   admin.otpExpires = new Date(Date.now() + 600000);
   admin.otpVerified = false;
   admin.verifyToken = "";
+  admin.verifyTokenExpires = null;
   await admin.save();
 
   return { otp, email: admin.email };
 };
 
 const verifyOtp = async (email, otp) => {
-  const admin = await Admin.findOne({ email: email.toLowerCase() });
+  if (typeof email !== "string" || typeof otp !== "string") {
+    const error = new Error("Email and OTP are required");
+    error.statusCode = 400;
+    throw error;
+  }
+  const admin = await Admin.findOne({ email: email.toLowerCase() }).select(
+    "+otpHash +otpExpires +otpVerified +verifyToken +verifyTokenExpires"
+  );
   if (!admin || !admin.otpHash || !admin.otpExpires) {
     const error = new Error("No OTP request found. Please request a new OTP.");
     error.statusCode = 400;
@@ -136,27 +165,39 @@ const verifyOtp = async (email, otp) => {
   admin.otpExpires = null;
   admin.otpVerified = true;
   admin.verifyToken = verifyToken;
+  admin.verifyTokenExpires = new Date(Date.now() + 15 * 60 * 1000);
   await admin.save();
 
   return verifyToken;
 };
 
 const resetPassword = async (verifyToken, newPassword, confirmPassword) => {
+  if (typeof verifyToken !== "string" || typeof newPassword !== "string" || typeof confirmPassword !== "string") {
+    const error = new Error("Invalid reset request");
+    error.statusCode = 400;
+    throw error;
+  }
   if (newPassword !== confirmPassword) {
     const error = new Error("Passwords do not match");
     error.statusCode = 400;
     throw error;
   }
 
-  const admin = await Admin.findOne({ verifyToken, otpVerified: true });
-  if (!admin) {
+  const admin = await Admin.findOne({ verifyToken, otpVerified: true }).select(
+    "+verifyToken +verifyTokenExpires +otpVerified +tokenVersion"
+  );
+  if (!admin || !admin.verifyTokenExpires || admin.verifyTokenExpires < new Date()) {
     const error = new Error("Invalid or expired verification. Please start the reset process again.");
     error.statusCode = 400;
     throw error;
   }
 
-  if (newPassword.length < 8) {
-    const error = new Error("Password must be at least 8 characters");
+  const policyError = validateStrongPassword(newPassword, {
+    firstName: admin.firstName,
+    lastName: admin.lastName,
+  });
+  if (policyError) {
+    const error = new Error(policyError);
     error.statusCode = 400;
     throw error;
   }
@@ -164,6 +205,8 @@ const resetPassword = async (verifyToken, newPassword, confirmPassword) => {
   admin.password = newPassword;
   admin.otpVerified = false;
   admin.verifyToken = "";
+  admin.verifyTokenExpires = null;
+  admin.tokenVersion = (admin.tokenVersion || 0) + 1;
   await admin.save();
 
   return admin;

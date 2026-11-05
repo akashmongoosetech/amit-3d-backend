@@ -18,12 +18,18 @@ const createBookModelValidator = [
   body("mobile")
     .notEmpty()
     .withMessage("Mobile number is required")
-    .trim(),
+    .customSanitizer((value) => (typeof value === "string" ? value.replace(/\D/g, "") : value))
+    .matches(/^\d{7,15}$/)
+    .withMessage("Mobile number must be 7–15 digits"),
 
   body("modelSize")
     .notEmpty()
     .withMessage("Model size is required")
-    .trim(),
+    .isString()
+    .withMessage("Model size must be a string")
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Model size must be 1–100 characters"),
 
   body("message")
     .notEmpty()

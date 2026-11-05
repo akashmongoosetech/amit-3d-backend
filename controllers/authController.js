@@ -69,7 +69,8 @@ const logout = async (_req, res) => {
 const sendOtp = async (req, res, next) => {
   try {
     const { identifier } = req.body;
-    if (!identifier) return sendError(res, 400, "Email, username or mobile is required");
+    if (!identifier || typeof identifier !== "string")
+      return sendError(res, "Email, username or mobile is required", 400);
 
     const { otp, email } = await authService.sendOtp(identifier);
 
@@ -77,15 +78,15 @@ const sendOtp = async (req, res, next) => {
       await sendOtpEmail(email, otp);
     } catch (emailErr) {
       console.error("sendOtpEmail failed:", emailErr.message);
-      const showOtp = process.env.NODE_ENV !== "production" || process.env.LOG_OTP_IN_CONSOLE === "true";
-      if (showOtp) {
-        console.log(`[DEV] OTP for ${email}: ${otp}`);
-        return sendSuccess(res, { email: email.replace(/(?<=.{3}).(?=.*@)/g, "*") }, `[DEV] OTP ${otp} — sent to ${email}`);
+      // Never expose OTP in API responses. Log only in non-production when explicitly enabled.
+      const env = require("../config/env");
+      if (env.NODE_ENV !== "production" && env.LOG_OTP_IN_CONSOLE) {
+        console.log(`[DEV] OTP for ${email} generated (see secure logs)`);
       }
-      return sendError(res, 500, "Failed to send OTP email. Please check SMTP credentials and try again.");
+      return sendError(res, "Failed to send OTP email. Please check SMTP configuration and try again.", 500);
     }
 
-    return sendSuccess(res, { email: email.replace(/(?<=.{3}).(?=.*@)/g, "*") }, "OTP sent to your email");
+    return sendSuccess(res, { message: "OTP sent to your email" }, "OTP sent to your email");
   } catch (err) {
     next(err);
   }
@@ -94,7 +95,8 @@ const sendOtp = async (req, res, next) => {
 const verifyOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
-    if (!email || !otp) return sendError(res, 400, "Email and OTP are required");
+    if (!email || !otp || typeof email !== "string" || typeof otp !== "string")
+      return sendError(res, "Email and OTP are required", 400);
 
     const verifyToken = await authService.verifyOtp(email, otp);
     return sendSuccess(res, { verifyToken }, "OTP verified successfully");
@@ -106,8 +108,15 @@ const verifyOtp = async (req, res, next) => {
 const resetPassword = async (req, res, next) => {
   try {
     const { verifyToken, password, confirmPassword } = req.body;
-    if (!verifyToken || !password || !confirmPassword) {
-      return sendError(res, 400, "verifyToken, password and confirmPassword are required");
+    if (
+      !verifyToken ||
+      !password ||
+      !confirmPassword ||
+      typeof verifyToken !== "string" ||
+      typeof password !== "string" ||
+      typeof confirmPassword !== "string"
+    ) {
+      return sendError(res, "verifyToken, password and confirmPassword are required", 400);
     }
 
     await authService.resetPassword(verifyToken, password, confirmPassword);
